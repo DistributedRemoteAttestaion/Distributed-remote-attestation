@@ -2,7 +2,7 @@
 
 This is the working area for the Internet-Draft, "Distributed Remote Attestation".
 
-* [Editor's Copy](https://github.com/DistributedRemoteAttestaion/Distributed-remote-attestation/build/draft-wang-rats-distributed-remote-attestation-02.xml)
+* [Editor's Copy](build/draft-wang-rats-distributed-remote-attestation-02.xml)
 * [Datatracker](https://datatracker.ietf.org/doc/draft-wang-rats-distributed-remote-attestation/)
 * [Compare Editor's Copy to Individual Draft](https://datatracker.ietf.org/doc/draft-wang-rats-distributed-remote-attestation/diff/)
 
