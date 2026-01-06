@@ -1,44 +1,40 @@
 SHELL := /bin/bash
-DRAFT ?= draft-yourname-yourtopic
+DRAFT ?= draft-wang-rats-distributed-remote-attestation-02
 
-MD    := $(DRAFT).md
+# Source XML at repo root
+SRC_XML := $(DRAFT).xml
+
+# Build outputs
 XML   := build/$(DRAFT).xml
 TXT   := build/$(DRAFT).txt
 HTML  := build/$(DRAFT).html
+INDEX := build/index.html
 
 XML2RFC ?= xml2rfc
 
-.PHONY: all clean check html txt xml
-
-INDEX := build/index.html
+.PHONY: all clean check html txt xml index build
 
 all: html txt index
-
-index: html
-	@cp -f $(HTML) $(INDEX)
-
 
 build:
 	@mkdir -p build
 
-xml: build $(MD)
-	@if command -v kramdown-rfc2629 >/dev/null 2>&1; then \
-		kramdown-rfc2629 $(MD) > $(XML); \
-	elif command -v kramdown-rfc >/dev/null 2>&1; then \
-		kramdown-rfc $(MD) > $(XML); \
-	else \
-		echo "ERROR: kramdown-rfc not found. Run: gem install kramdown-rfc"; \
-		exit 1; \
-	fi
+# Copy source XML into build/ for publishing
+xml: build $(SRC_XML)
+	@cp -f $(SRC_XML) $(XML)
 
 html: xml
-	$(XML2RFC) --v3 --html -o $(HTML) $(XML)
+	$(XML2RFC) --v2 --html -o $(HTML) $(XML)
 
 txt: xml
-	$(XML2RFC) --v3 --text -o $(TXT) $(XML)
+	$(XML2RFC) --v2 --text -o $(TXT) $(XML)
 
 check: xml
-	$(XML2RFC) --v3 --strict --quiet $(XML) >/dev/null
+	$(XML2RFC) --v2 --strict --quiet $(XML) >/dev/null
+
+# If you want GitHub Pages root to show the draft HTML:
+index: html
+	@cp -f $(HTML) $(INDEX)
 
 clean:
 	rm -rf build

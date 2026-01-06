@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This is built from a template for a generic Internet Draft. Suggestions for
+     improvement welcome - write to Brian Carpenter, brian.e.carpenter @ gmail.com 
+     This can be converted using the Web service at http://xml.resource.org/ -->
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
+<!-- You want a table of contents -->
+<!-- Use symbolic labels for references -->
+<!-- This sorts the references -->
+<!-- Change to "yes" if someone has disclosed IPR for the draft -->
+<!-- This defines the specific filename and version number of your draft (and inserts the appropriate IETF boilerplate -->
+<?rfc sortrefs="yes"?>
+<?rfc toc="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc topblock="yes"?>
+<?rfc comments="no"?>
+<rfc category="std"
+     docName="draft-wang-rats-distributed-remote-attestation-02"
+     ipr="trust200902">
+  <front>
+    <title abbrev="DRA">Distributed Remote Attestation</title>
+
+      <seriesInfo name="Internet-Draft" value="draft-wang-rats-distributed-remote-attestation-02"/>
+      <author initials="D." surname="Wang" fullname="Donghui Wang">
+        <organization>Huawei</organization>
+        <address>
+          <email>wangdonghui124@huawei.com</email>
+        </address>
+      </author>
+      <author initials="F." surname="Liu" fullname="Faye Liu">
+        <organization>Huawei</organization>
+        <address>
+          <email>liufei19@huawei.com</email>
+        </address>
+      </author>
+      <author initials="Y." surname="Jiang" fullname="Yuning Jiang">
+        <organization>Huawei</organization>
+        <address>
+          <email>jiangyuning2@h-partners.com</email>
+        </address>
+      </author>
+      <author initials="J." surname="Zhang" fullname="Jun Zhang">
+        <organization>Huawei</organization>
+        <address>
+          <email>junzhang1@huawei.com</email>
+        </address>
+      </author>
+
+
+    <!---->
+
+    <date day="06" month="Jan" year="2026"/>
+
+     <abstract>
+      <t>
+        In many deployments, remote attestation is performed within separate
+        administrative and trust domains.  Each domain typically operates its
+        own management plane and a Remote Attestation Service (RAS) to obtain
+        verifier inputs (e.g., endorsement material and reference values) and
+        produce attestation results.  At scale, cross-domain scenarios face two
+        recurring challenges: (1) enabling policy-controlled transparency so
+        that verifiers or relying parties in one domain can discover and
+        retrieve selected attestation artifacts from other domains; and (2)
+        supporting many-to-many distribution and reuse of verifier inputs and
+        verifier outputs without requiring point-to-point integrations.
+      </t>
+      <t>
+        This document describes Distributed Remote Attestation (DRA) patterns
+        that use a shared publication channel for selected artifacts with
+        provenance and access control in mind.  A Distributed Ledger (DL) is
+        discussed as one concrete instantiation of such a publication channel,
+        including an option to host verification logic on the DL.  The
+        described patterns are intended to complement existing RATS
+        procedures and conceptual messages, and can be realized by other
+        tamper-evident publication channels with comparable properties.
+      </t>
+    </abstract>
+  </front>
+
+  <middle>
+    <section anchor="intro">
+      <name>Introduction</name>
+
+      <t>
+        Remote attestation is increasingly deployed in federated and
+        multi-operator environments where devices, services, and management
+        systems span multiple administrative and trust domains.  In practice,
+        each trust domain often operates its own Remote Attestation Service
+        (RAS) integrated into that domain's management plane, and exposes
+        attestation capabilities and artifacts according to local policies.
+      </t>
+
+      <t>
+        Cross-domain deployments expose a gap that is not primarily about the
+        attestation evidence format or the appraisal function itself, but about
+        <em>how attestation artifacts are discovered, distributed, and reused</em>
+        across domains at scale.  Two pain points are repeatedly observed:
+      </t>
+
+      <list style="symbols">
+        <t>
+          <em>Cross-domain attestation transparency:</em> A verifier or relying
+          party in domain-A may need to obtain endorsement material, reference
+          values, or attestation results that originate in domain-B.  Direct
+          point-to-point integration between operational sites does not scale,
+          and is often infeasible due to operational domains and policy
+          constraints.  Deployments therefore need a policy-consensus controlled channel
+          to publish and retrieve selected artifacts with clear provenance.
+        </t>
+        <t>
+          <em>Many-to-many distribution and reuse of security artifacts:</em>
+          Verifiers appraising heterogeneous attesters need to obtain endorser
+          public keys, endorsements, and reference values from multiple
+          providers.  Conversely, providers need to distribute artifacts to
+          multiple verifiers across domains.  Similar many-to-many scaling
+          issues apply when attestation results are shared for reuse by other
+          verifiers or relying parties.  Without a shared publication channel,
+          each integration becomes a bespoke, brittle dependency.
+        </t>
+      </list>
+
+      <t>
+        This document proposes a set of DRA patterns that make selected
+        attestation artifacts more reusable across multiple verifiers and
+        domains by introducing a shared publication channel.  The publication
+        channel is used to distribute:
+        (a) verifier inputs such as endorser public keys, endorsements, and
+        reference values; and (b) verifier outputs such as
+        attestation results (or pointers/digests).  
+      </t>
+
+      <t>
+        A Distributed Ledger (DL) is discussed as one concrete instantiation
+        of the publication channel.  DLs provide tamper-evidence and
+        append-only provenance, and can be deployed in permissioned settings
+        with authenticated writes and controlled reads.  Where appropriate, a
+        DL can additionally host verification logic (e.g., smart contracts) to
+        record appraisal outcomes in a shared, auditable manner.  The patterns
+        in this document are not limited to DLs and can also be realized using
+        other tamper-evident publication channels with comparable integrity and
+        availability properties.
+      </t>
+
+      <t>
+        The rest of this document is organized as follows: <xref target="terms"/>
+        defines terminology and abbreviations; <xref target="patterns"/>
+        specifies two DRA patterns (off-chain attestation/verification with
+        on-channel publication, and an option for on-channel verification); and
+        <xref target="considerations"/> discusses freshness, access control,
+        governance, and privacy considerations.
+      </t>
+
+    </section>
+  
+
+    <section anchor="req-lang">
+      <name>Requirements Language</name>
+      <t>
+        The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+        "OPTIONAL" in this document are to be interpreted as described in 
+        <xref target="RFC2119"/> .
+      </t>
+    </section>
+
+    <section anchor="terms">
+      <name>Conventions and Definitions</name>
+
+      <t>
+        This document uses roles and concepts defined by the RATS Architecture
+        <xref target="RFC9334"/> (e.g., Attester, Verifier, Endorser, Reference
+        Value Provider, and Relying Party).
+      </t>
+
+      <section anchor="abbrev">
+        <name>Abbreviations</name>
+        <list style="hanging">
+          <t hangText="DL:">Distributed Ledger.</t>
+          <t hangText="DRA:">Distributed Remote Attestation (the patterns described in this document).</t>
+          <t hangText="RAS:">
+            Remote Attestation Service (deployment-specific service performing verifier functions
+            or mediating access to verifier inputs/outputs).
+          </t>
+          <t hangText="RV:">Reference Value (as in <xref target="RFC9334"/>).</t>
+          <t hangText="AE:">Attestation Evidence (as in <xref target="RFC9334"/>).</t>
+          <t hangText="AR:">Attestation Result (as in <xref target="RFC9334"/>).</t>
+        </list>
+      </section>
+
+      <section anchor="defs">
+        <name>Additional Definitions</name>
+        <list style="hanging">
+          <t hangText="Artifact Publisher:">
+            An entity that publishes selected attestation artifacts to the publication channel,
+            such as an Endorser publishing endorsement material, a Reference Value Provider publishing RVs,
+            or a Verifier publishing ARs (or pointers/digests).
+          </t>
+          <t hangText="Artifact Consumer:">
+            An entity that retrieves artifacts from the publication channel, such as a Verifier retrieving RVs/endorsements,
+            or a Relying Party retrieving ARs for decision-making.
+          </t>
+          <t hangText="Publication Channel:">
+            A shared channel used to publish and retrieve selected attestation artifacts with provenance.
+            A DL is one concrete instantiation; other tamper-evident channels may also be used.
+          </t>
+        </list>
+      </section>
+    </section>
+
+    <section anchor="patterns">
+      <name>DRA Patterns</name>
+
+      <t>
+        This section describes two common patterns for using a DL-backed RAS as
+        a publication channel for attestation artifacts.  Both patterns assume
+        that RVs and Endorser material (e.g., public keys and endorsement
+        metadata) can be published to, and retrieved from, the DL under
+        suitable access control policies.
+      </t>
+
+      <section anchor="pattern-offchain">
+        <name>DL publication with off-chain attestation and verification</name>
+
+        <figure anchor="fig-offchain">
+          <name>DL publication with off-chain attestation and verification</name>
+          <artwork><![CDATA[
++-------------------+                       +-------------------+
+|     Reference     |                       |      Endorsers    |
+|   value providers |                       |                   |
++-------------------+                       +-------------------+
+         |                                           |
+         |                                           |
+         | (0) RV                                    | (0)PK
+         |                                           |
++--------v-------------------------------------------v-----------+
+|                                                                |
+|        Distributed Ledger(Remote attestation service,RAS)      |
+|                                                                |
++-----------------------------------^----------------------------+
+                                |   |                     |
+                      (3)RV,PK  |   | (5)AR               |(6)AR
+                                |   |                     |
+                                |   |                     |
++----------------+           +--v-------------+   +-------v---+
+|  Attester      |           |  Verifier      |   | Relying   |
+| (1) freshness  |---------->| (4) AR         |   |  party    |
+|      proof     |  (2) AE   |     generation |   |           |
++----------------+           +----------------+   +-----------+
+
+Figure 1 on-chain-based publication and off-chain-based attestation/verification]]></artwork>
+        </figure>
+
+        <t>
+          As shown in Figure 1, attestation evidence exchange and appraisal follow
+          existing RATS flows, while the DL is used to publish and retrieve
+          verifier inputs and verifier outputs:
+        </t>
+
+        <list style="hanging">
+      <t hangText="0)">
+        <em>Registration/publication of inputs:</em> Reference Value Providers publish RVs
+        to the DL/RAS. Endorsers publish endorsement-related artifacts (e.g., endorser public keys (PK) and/or
+        endorsements) to the DL/RAS. Access control and provenance mechanisms (e.g., permissioning, signatures)
+        are deployment-specific.
+      </t>
+
+      <t hangText="1)">
+        <em>Freshness proof preparation:</em> A freshness challenge/context may be issued by the Verifier, RP, or another
+        authorized requester acting under policy (e.g., a domain management function). The challenge can take
+        different forms depending on deployment (e.g., a nonce, an epoch identifier, a timestamp requirement,
+        or a context string bound to an intended appraisal). The Attester uses the received challenge/context
+        to construct a <em>freshness proof</em> that will be included in AE (see step (2)).
+      </t>
+
+      <t hangText="2)">
+        <em>Evidence (off-chain):</em> The Attester generates AE, incorporating the freshness
+        proof required by the Verifier, and sends AE to the Verifier over an authenticated and integrity-protected
+        channel.
+      </t>
+
+      <t hangText="3)">
+        <em>Retrieval of appraisal inputs:</em> The Verifier retrieves RVs and Endorser artifacts (e.g., PK) from the
+        DL/RAS (or from caches populated from it), and uses them as appraisal inputs.
+      </t>
+
+      <t hangText="4)">
+        <em>Result generation and publication:</em> The Verifier appraises AE using the retrieved RV/PK,
+        and generates AR.
+      </t>
+
+      <t hangText="5)">
+        <em>Publication of results:</em> The Verifier publishes AR (or a pointer/digest to AR) to the DL/RAS for
+        cross-domain discovery and potential reuse, subject to policy, privacy, and confidentiality constraints.
+      </t>
+
+      <t hangText="6)">
+        <em>Reuse:</em> RP retrieves AR from the DL/RAS and decides whether to reuse
+        it based on provenance, freshness/validity window, and local policy.
+      </t>
+    </list>
+      </section>
+
+      <section anchor="pattern-onchain">
+        <name>DL publication with optional on-chain verification</name>
+
+        <figure anchor="fig-onchain">
+          <name>DL publication with optional on-chain verification </name>
+          <artwork><![CDATA[
++-------------------+                       +-------------------+
+|     Reference     |                       |      Endorsers    |
+|   value providers |                       |                   |
++-------------------+                       +-------------------+
+         |                                           |
+         |  (0) RV                                   | (0) PK(/endorsement)
+         |                                           |
++--------v-------------------------------------------v-----------+
+|                                                                |
+|     +----------------+            +----------------+           |
+|     |  Registration  |            |  Verification  |           |
+|     |     smart      |            |     smart      |           |
+|     |   contract     |            |   contract     |           |
+|     +----------------+            +----------------+           |
+|                                                                |
+|    Distributed Ledger (Remote attestation service, RAS)        |
+|                                                                |
++-------------^--------------------------------------------------+                                                                
+      (2) AE  |                               | (3) AR
+              |                               |
+          +---v----------+               +----v--------------+
+          |   Attester   |               | Verifier/Relying  |
+          |   (1) PC     |               |      party        |
+          +--------------+               +-------------------+                                                             
+
+Figure 2 on-chain-based publication/attestation/verification]]></artwork>
+        </figure>
+
+        <t>
+          As shown in Figure 2, it can be beneficial to verify and/or record
+          appraisal outcomes in a shared, tamper-evident way.  In this pattern,
+          the DL is used for publication as in the previous pattern, and 
+          hosts verification logic (e.g., smart contracts) or
+          record verifiers' appraisal outcomes.
+        </t>
+
+        <list style="hanging">
+      <t hangText="0)">
+        <em>Registration/publication of inputs:</em> RVs and Endorser artifacts (e.g., PK/endorsements) are published
+        to the DL/RAS. The <em>Registration smart contract</em> supports publication authorization,
+        schema/version checks, and governance rules.
+      </t>
+
+      <t hangText="1)">
+        <em>Evidence publication:</em> The Attester generates AE and submits it to the DL/RAS via the
+        Registration smart contract. AE could include a freshness proof suitable for publication and reuse
+        (e.g., timestamp or epoch ID). The Attester may also obtain/derive a public challenge (PC) value
+        to support freshness/unpredictability of the subsequent evidence. A common realization is to use a
+        DL-derived value such as a recent block hash (or other consensus-derived header material). The block-generation
+        process (consensus, timestamps, and transaction sets) makes future block hashes hard to predict in advance,
+        and the one-way property of hash functions prevents an attacker from predefining a desired hash by
+        reverse-engineering corresponding block contents. Such selected PC is incorporated into AE in step (2).
+      </t>
+
+      <t hangText="2)">
+        <em>Verification and result recording (on-chain):</em> The <em>Verification smart contract</em> (or other
+        on-chain verification logic) verifies AE using RVs and Endorser artifacts available from the DL/RAS, and
+        checks freshness according to configured policy (e.g., acceptable time window / epoch constraints). The
+        appraisal outcome is recorded as AR (or an appraisal log entry) on-chain. Triggering may be initiated by a
+        Verifier, a Relying Party, or automatically upon AE submission, subject to policy.
+      </t>
+
+      <t hangText="3)">
+        <em>Result retrieval:</em> The Verifier/RP queries the DL/RAS and obtains AR for decision-making
+        and/or reuse.
+      </t>
+    </list>
+      </section>
+    </section>
+	
+	  <section anchor="considerations">
+      <name>Discussion</name>
+
+      <section anchor="freshness">
+        <name>Freshness and Reuse</name>
+        <t>For the DRA service, the blocks of the DL need to be generated at appropriate time intervals, such as 
+        every few seconds. The consensus rules trigger the new block generation process periodically through preset 
+        time parameters. Even if there is no transaction data within a specific period, nodes will still generate 
+        an empty block containing basic information like the hash of the previous block and timestamps according 
+        to established algorithms. This approach aims to maintain the continuity of the DL chain structure and 
+        the orderliness of timestamps, thereby ensuring the freshness and validity of PC.	</t>
+       
+        <t>
+          Artifact Consumers evaluates whether retrieved artifacts are fresh enough for their own threat model
+          and acceptable staleness window.  When ARs are published for reuse, it is recommended that ARs include
+          time-of-appraisal and a validity interval, so that downstream consumers can make an informed decision.
+        </t>
+      </section>
+
+      <section anchor="access">
+        <name>Access Control and Provenance</name>
+        <t>
+          The publication channel enforces authorization for publication.  Consumers validates provenance and
+          integrity (e.g., signatures, trust anchors) for retrieved RVs, endorsement material, and ARs.
+          Deployments further defines governance for artifact update/rollback and caching policies.
+        </t>
+      </section>
+    </section>
+
+    <section anchor="iana">
+      <name>IANA Considerations</name>
+      <t>This document has no IANA considerations.</t>
+    </section>
+
+    <section anchor="security">
+      <name>Security Considerations</name>
+      <t>TODO</t>
+    </section>
+
+  </middle>
+
+  <back>
+    <references title = "References">
+
+      <references title = "Normative Reference">
+	 	  
+  
+	    <reference anchor="RFC2119">
+        <front>
+          <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+          <author fullname="S. Bradner" initials="S." surname="Bradner"/>
+          <date month="March" year="1997"/>
+          <abstract>
+            <t>In many standards track documents several words are used to signify the requirements in the specification. These words are often capitalized. This document defines these words as they should be interpreted in IETF documents. This document specifies an Internet Best Current Practices for the Internet Community, and requests discussion and suggestions for improvements.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="BCP" value="14"/>
+        <seriesInfo name="RFC" value="2119"/>
+        <seriesInfo name="DOI" value="10.17487/RFC2119"/>
+      </reference>
+	  
+    </references>
+
+      <references title = "Informative References">
+          <reference anchor=" RFC9334" target="https://datatracker.ietf.org/doc/rfc9334/">
+        <front>
+        <title>Remote ATtestation procedureS (RATS) Architecture</title>
+	    <author fullname="D. Thaler" initials="D." surname="Thaler"/> 
+		<author fullname="M. Richardson" initials="M." surname="Richardson"/> 
+		<author fullname="N. Smith" initials="M." surname="Smith"/> 
+		<author fullname="W. Pan" initials="W." surname="Pan"/> 
+        <date month="January" year="2023"/>
+        </front>
+      </reference>
+  	
+	  
+	</references>
+	
+	
+  </references>
+  
+    <section anchor="acknowledgments" numbered="false"> 
+      <name>Acknowledgments</name>
+      <t>TODO</t>
+    </section>
+
+  </back>
+</rfc>

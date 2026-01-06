@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<!-- saved from url=(0086)https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html -->
+<html lang="en" class="Internet-Draft"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Distributed Remote Attestation</title>
+<meta content="Donghui Wang" name="author">
+<meta content="Faye Liu" name="author">
+<meta content="Yuning Jiang" name="author">
+<meta content="Jun Zhang" name="author">
+<meta content="
+       
+        In many deployments, remote attestation is performed within separate
+        administrative and trust domains.  Each domain typically operates its
+        own management plane and a Remote Attestation Service (RAS) to obtain
+        verifier inputs (e.g., endorsement material and reference values) and
+        produce attestation results.  At scale, cross-domain scenarios face two
+        recurring challenges: (1) enabling policy-controlled transparency so
+        that verifiers or relying parties in one domain can discover and
+        retrieve selected attestation artifacts from other domains; and (2)
+        supporting many-to-many distribution and reuse of verifier inputs and
+        verifier outputs without requiring point-to-point integrations.
+       
+       
+        This document describes Distributed Remote Attestation (DRA) patterns
+        that use a shared publication channel for selected artifacts with
+        provenance and access control in mind.  A Distributed Ledger (DL) is
+        discussed as one concrete instantiation of such a publication channel,
+        including an option to host verification logic on the DL.  The
+        described patterns are intended to complement existing RATS
+        procedures and conceptual messages, and can be realized by other
+        tamper-evident publication channels with comparable properties.
+       
+    " name="description">
+<meta content="xml2rfc 3.31.0" name="generator">
+<meta content="draft-wang-rats-distributed-remote-attestation-02" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.31.0
+    Python 3.12.12
+    ConfigArgParse 1.7.1
+    google-i18n-address 3.1.1
+    intervaltree 3.1.0
+    Jinja2 3.1.6
+    lxml 6.0.2
+    platformdirs 4.5.1
+    pycountry 24.6.1
+    PyYAML 6.0.3
+    requests 2.32.5
+    wcwidth 0.2.14
+    weasyprint 67.0
+-->
+<link href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.xml" rel="alternate" type="application/rfc+xml">
+<link href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#copyright" rel="license">
+<style type="text/css">/*
+
+  NOTE: Changes at the bottom of this file overrides some earlier settings.
+
+  Once the style has stabilized and has been adopted as an official RFC style,
+  this can be consolidated so that style settings occur only in one place, but
+  for now the contents of this file consists first of the initial CSS work as
+  provided to the RFC Formatter (xml2rfc) work, followed by itemized and
+  commented changes found necessary during the development of the v3
+  formatters.
+
+*/
+
+/* fonts */
+@import url('https://static.ietf.org/fonts/noto-sans/import.css'); /* Sans-serif */
+@import url('https://static.ietf.org/fonts/noto-serif/import.css'); /* Serif (print) */
+@import url('https://static.ietf.org/fonts/roboto-mono/import.css'); /* Monospace */
+
+:root {
+  --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
+  --font-serif: 'Noto Serif', 'Times', 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', Courier, 'Courier New', monospace;
+}
+
+@viewport {
+  zoom: 1.0;
+}
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+/* general and mobile first */
+html {
+}
+body {
+  max-width: 90%;
+  margin: 1.5em auto;
+  color: #222;
+  background-color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  overflow-wrap: break-word;
+}
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  margin: 1em 0 0.5em;
+  font-weight: bold;
+  line-height: 1.3;
+}
+#title {
+  clear: both;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 0.5em 0;
+  padding: 1em 0 0.5em;
+}
+.author {
+  padding-bottom: 4px;
+}
+h1 {
+  font-size: 26px;
+  margin: 1em 0;
+}
+h2 {
+  font-size: 22px;
+  margin-top: -20px;  /* provide offset for in-page anchors */
+  padding-top: 33px;
+}
+h3 {
+  font-size: 18px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h4 {
+  font-size: 16px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h5, h6 {
+  font-size: 14px;
+}
+#n-copyright-notice {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+}
+/* general structure */
+p {
+  padding: 0;
+  margin: 0 0 1em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+@media print {
+  svg {
+    max-height: 850px;
+    max-width: 660px;
+  }
+}
+svg[font-family~="serif" i], svg [font-family~="serif" i] {
+  font-family: var(--font-serif);
+}
+svg[font-family~="sans-serif" i], svg [font-family~="sans-serif" i] {
+  font-family: var(--font-sans);
+}
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  display: table;
+  border: none;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.ulBare, li.ulBare {
+  margin-left: 0em !important;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+/* 
+dl.nohang > dt {
+  float: none;
+}
+*/
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+
+/* links */
+a {
+  text-decoration: none;
+}
+a[href] {
+  color: #22e; /* Arlen: WCAG 2019 */
+}
+a[href]:hover {
+  background-color: #f2f2f2;
+}
+figcaption a[href],
+a[href].selfRef {
+  color: #222;
+}
+/* XXX probably not this:
+a.selfRef:hover {
+  background-color: transparent;
+  cursor: default;
+} */
+
+/* Figures */
+tt, code, pre {
+  background-color: #f9f9f9;
+  font-family: var(--font-mono);
+}
+pre {
+  border: 1px solid #eee;
+  margin: 0;
+  padding: 1em;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption {
+  font-style: italic;
+  margin: 0 0 1em 0;
+}
+@media screen {
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    max-width: calc(100% - 22px);
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 1.2em 2em;
+}
+blockquote {
+  background-color: #f9f9f9;
+  color: #111; /* Arlen: WCAG 2019 */
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin: 1em 0;
+}
+blockquote > *:last-child {
+  margin-bottom: 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+.xref {
+  overflow-wrap: normal;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid #eee;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #e9e9e9;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f5f5f5;
+}
+table caption {
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  color: #666; /* Arlen: AHDJ 2019 */
+  text-decoration: none;
+  visibility: hidden;
+  user-select: none;
+  -ms-user-select: none;
+  -o-user-select:none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media screen {
+  aside:hover > a.pilcrow,
+  p:hover > a.pilcrow,
+  blockquote:hover > a.pilcrow,
+  div:hover > a.pilcrow,
+  li:hover > a.pilcrow,
+  pre:hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: 0.9em;
+}
+#identifiers dt {
+  width: 3em;
+  clear: left;
+}
+#identifiers dd {
+  float: left;
+  margin-bottom: 0;
+}
+/* Fix PDF info block run off issue */
+@media print {
+  #identifiers dd {
+    max-width: 100%;
+  }
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #666; /* Arlen: WCAG 2019 */
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc  {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+nav.toc ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+nav.toc li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.refSubseries {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 600px) {
+  .index ul {
+    -moz-column-count: 2;
+    -moz-column-gap: 20px;
+  }
+  .index ul ul {
+    -moz-column-count: 1;
+    -moz-column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  font-family: var(--font-sans);
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #9e2a00; /* Arlen: WCAG 2019 */
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  border-radius: 3px;
+}
+.cref {
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 1023px) {
+  body {
+    padding-top: 2em;
+  }
+  #title {
+    padding: 1em 0;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: -18px;  /* provide offset for in-page anchors */
+    padding-top: 38px;
+  }
+  #identifiers dd {
+    max-width: 60%;
+  }
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    background-color: inherit;
+    border-bottom: 1px solid #ccc;
+  }
+  #toc h2 {
+    margin: -1px 0 0 0;
+    padding: 4px 0 4px 6px;
+    padding-right: 1em;
+    min-width: 190px;
+    font-size: 1.1em;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 6px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 1024px) {
+  body {
+    max-width: 724px;
+    margin: 42px auto;
+    padding-left: 1.5em;
+    padding-right: 29em;
+  }
+  #toc {
+    position: fixed;
+    top: 42px;
+    right: 42px;
+    width: 25%;
+    margin: 0;
+    padding: 0 1em;
+    z-index: 1;
+  }
+  #toc h2 {
+    border-top: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 1em;
+    font-weight: normal;
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 0;
+    overflow: auto;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  .breakable pre {
+    break-inside: auto;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+/* This is commented out here, as the string-set: doesn't
+   pass W3C validation currently */
+/*
+.ears thead .left {
+  string-set: ears-top-left content();
+}
+
+.ears thead .center {
+  string-set: ears-top-center content();
+}
+
+.ears thead .right {
+  string-set: ears-top-right content();
+}
+
+.ears tfoot .left {
+  string-set: ears-bottom-left content();
+}
+
+.ears tfoot .center {
+  string-set: ears-bottom-center content();
+}
+
+.ears tfoot .right {
+  string-set: ears-bottom-right content();
+}
+*/
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+  /* The following is commented out here, but set appropriately by in code, as
+     the content depends on the document */
+  /*
+  @top-left {
+    content: 'Internet-Draft';
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-left {
+    content: string(ears-top-left);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-center {
+    content: string(ears-top-center);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-right {
+    content: string(ears-top-right);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @bottom-left {
+    content: string(ears-bottom-left);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-center {
+    content: string(ears-bottom-center);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-right {
+      content: '[Page ' counter(page) ']';
+      vertical-align: top;
+      border-top: solid 1px #ccc;
+  }
+  */
+
+}
+
+/* Changes introduced to fix issues found during implementation */
+/* Make sure links are clickable even if overlapped by following H* */
+a {
+  z-index: 2;
+}
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Leave room in document info to show Internet-Draft on one line */
+#identifiers dt {
+  width: 8em;
+}
+
+/* Don't waste quite as much whitespace between label and value in doc info */
+#identifiers dd {
+  margin-left: 1em;
+}
+
+/* Give floating toc a background color (needed when it's a div inside section */
+#toc {
+  background-color: white;
+}
+
+/* Make the collapsed ToC header render white on gray also when it's a link */
+@media screen and (max-width: 1023px) {
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+}
+
+/* Give the bottom of the ToC some whitespace */
+@media screen and (min-width: 1024px) {
+  #toc {
+    padding: 0 0 1em 1em;
+  }
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* prevent monospace from becoming overly large */
+tt, code, pre {
+  font-size: 95%;
+}
+
+/* Fix the height/width aspect for ascii art*/
+.sourcecode pre,
+.art-text pre {
+  line-height: 1.12;
+}
+
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin-right: 0.5em;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table td.text-left,
+table th.text-left {
+  text-align: left;
+}
+table td.text-center,
+table th.text-center {
+  text-align: center;
+}
+table td.text-right,
+table th.text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 30em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+caption a[href] {
+  color: #222;
+}
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+/* Tweak the invisible space above H* in order not to overlay links in text above */
+ h2 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 31px;
+ }
+ h3 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+ h4 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+/* Float artwork pilcrow to the right */
+@media screen {
+  .artwork a.pilcrow {
+    display: block;
+    line-height: 0.7;
+    margin-top: 0.15em;
+  }
+}
+/* Make pilcrows on dd visible */
+@media screen {
+  dd:hover > a.pilcrow {
+    visibility: visible;
+  }
+}
+/* Make the placement of figcaption match that of a table's caption
+   by removing the figure's added bottom margin */
+.alignLeft.art-text,
+.alignCenter.art-text,
+.alignRight.art-text {
+   margin-bottom: 0;
+}
+.alignLeft,
+.alignCenter,
+.alignRight {
+  margin: 1em 0 0 0;
+}
+/* In print, the pilcrow won't show on hover, so prevent it from taking up space,
+   possibly even requiring a new line */
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+/* Styling for the external metadata */
+div#external-metadata {
+  background-color: #eee;
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  display: none;
+}
+div#internal-metadata {
+  padding: 0.5em;                       /* to match the external-metadata padding */
+}
+/* Styling for title RFC Number */
+h1#rfcnum {
+  clear: both;
+  margin: 0 0 -1em;
+  padding: 1em 0 0 0;
+}
+/* Make .olPercent look the same as <ol><li> */
+dl.olPercent > dd {
+  margin-bottom: 0.25em;
+  min-height: initial;
+}
+/* Give aside some styling to set it apart */
+aside {
+  border-left: 1px solid #ddd;
+  margin: 1em 0 1em 2em;
+  padding: 0.2em 2em;
+}
+aside > dl,
+aside > ol,
+aside > ul,
+aside > table,
+aside > p {
+  margin-bottom: 0.5em;
+}
+/* Additional page break settings */
+@media print {
+  figcaption, table caption {
+    page-break-before: avoid;
+  }
+}
+/* Font size adjustments for print */
+@media print {
+  body  { font-size: 10pt;      line-height: normal; max-width: 96%; }
+  h1    { font-size: 1.72em;    padding-top: 1.5em; } /* 1*1.2*1.2*1.2 */
+  h2    { font-size: 1.44em;    padding-top: 1.5em; } /* 1*1.2*1.2 */
+  h3    { font-size: 1.2em;     padding-top: 1.5em; } /* 1*1.2 */
+  h4    { font-size: 1em;       padding-top: 1.5em; }
+  h5, h6 { font-size: 1em;      margin: initial; padding: 0.5em 0 0.3em; }
+}
+/* Sourcecode margin in print, when there's no pilcrow */
+@media print {
+  .artwork,
+  .artwork > pre,
+  .sourcecode {
+    margin-bottom: 1em;
+  }
+}
+/* Avoid narrow tables forcing too narrow table captions, which may render badly */
+table {
+  min-width: 20em;
+}
+/* ol type a */
+ol.type-a { list-style-type: lower-alpha; }
+ol.type-A { list-style-type: upper-alpha; }
+ol.type-i { list-style-type: lower-roman; }
+ol.type-I { list-style-type: upper-roman; }
+/* Apply the print table and row borders in general, on request from the RPC,
+and increase the contrast between border and odd row background slightly */
+table {
+  border: 1px solid #ddd;
+}
+td {
+  border-top: 1px solid #ddd;
+}
+tr {
+  break-inside: avoid;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f8f8f8;
+}
+/* Use style rules to govern display of the TOC. */
+@media screen and (max-width: 1023px) {
+  #toc nav { display: none; }
+  #toc.active nav { display: block; }
+}
+/* Add support for keepWithNext */
+.keepWithNext {
+  break-after: avoid-page;
+  break-after: avoid-page;
+}
+/* Add support for keepWithPrevious */
+.keepWithPrevious {
+  break-before: avoid-page;
+}
+/* Change the approach to avoiding breaks inside artwork etc. */
+figure, pre, table, .artwork, .sourcecode  {
+  break-before: auto;
+  break-after: auto;
+}
+/* Avoid breaks between <dt> and <dd> */
+dl {
+  break-before: auto;
+  break-inside: auto;
+}
+dt {
+  break-before: auto;
+  break-after: avoid-page;
+}
+dd {
+  break-before: avoid-page;
+  break-after: auto;
+  orphans: 3;
+  widows: 3
+}
+span.break, dd.break {
+  margin-bottom: 0;
+  min-height: 0;
+  break-before: auto;
+  break-inside: auto;
+  break-after: auto;
+}
+/* Undo break-before ToC */
+@media print {
+  #toc {
+    break-before: auto;
+  }
+}
+/* Text in compact lists should not get extra bottom margin space,
+   since that would makes the list not compact */
+ul.compact p, .ulCompact p,
+ol.compact p, .olCompact p {
+ margin: 0;
+}
+/* But the list as a whole needs the extra space at the end */
+section ul.compact,
+section .ulCompact,
+section ol.compact,
+section .olCompact {
+  margin-bottom: 1em;                    /* same as p not within ul.compact etc. */
+}
+/* The tt and code background above interferes with for instance table cell
+   backgrounds.  Changed to something a bit more selective. */
+tt, code {
+  background-color: transparent;
+}
+p tt, p code, li tt, li code, dt tt, dt code {
+  background-color: #f8f8f8;
+}
+/* Tweak the pre margin -- 0px doesn't come out well */
+pre {
+   margin-top: 0.5px;
+}
+/* Tweak the compact list text */
+ul.compact, .ulCompact,
+ol.compact, .olCompact,
+dl.compact, .dlCompact {
+  line-height: normal;
+}
+/* Don't add top margin for nested lists */
+li > ul, li > ol, li > dl,
+dd > ul, dd > ol, dd > dl,
+dl > dd > dl {
+  margin-top: initial;
+}
+/* Elements that should not be rendered on the same line as a <dt> */
+/* This should match the element list in writer.text.TextWriter.render_dl() */
+dd > div.artwork:first-child,
+dd > aside:first-child,
+dd > blockquote:first-child,
+dd > figure:first-child,
+dd > ol:first-child,
+dd > div.sourcecode:first-child,
+dd > table:first-child,
+dd > ul:first-child {
+  clear: left;
+}
+/* fix for weird browser behaviour when <dd/> is empty */
+dt+dd:empty::before{
+  content: "\00a0";
+}
+/* Make paragraph spacing inside <li> smaller than in body text, to fit better within the list */
+li > p {
+  margin-bottom: 0.5em
+}
+/* Don't let p margin spill out from inside list items */
+li > p:last-of-type:only-child {
+  margin-bottom: 0;
+}
+</style>
+<link href="./Distributed Remote Attestation_files/rfc-local.css" rel="stylesheet" type="text/css">
+<script type="application/javascript">async function addMetadata(){try{const e=document.styleSheets[0].cssRules;for(let t=0;t<e.length;t++)if(/#identifiers/.exec(e[t].selectorText)){const a=e[t].cssText.replace("#identifiers","#external-updates");document.styleSheets[0].insertRule(a,document.styleSheets[0].cssRules.length)}}catch(e){console.log(e)}const e=document.getElementById("external-metadata");if(e)try{var t,a="",o=function(e){const t=document.getElementsByTagName("meta");for(let a=0;a<t.length;a++)if(t[a].getAttribute("name")===e)return t[a].getAttribute("content");return""}("rfc.number");if(o){t="https://www.rfc-editor.org/rfc/rfc"+o+".json";try{const e=await fetch(t);a=await e.json()}catch(e){t=document.URL.indexOf("html")>=0?document.URL.replace(/html$/,"json"):document.URL+".json";const o=await fetch(t);a=await o.json()}}if(!a)return;e.style.display="block";const s="",d="https://datatracker.ietf.org/doc",n="https://datatracker.ietf.org/ipr/search",c="https://www.rfc-editor.org/info",l=a.doc_id.toLowerCase(),i=a.doc_id.slice(0,3).toLowerCase(),f=a.doc_id.slice(3).replace(/^0+/,""),u={status:"Status",obsoletes:"Obsoletes",obsoleted_by:"Obsoleted By",updates:"Updates",updated_by:"Updated By",see_also:"See Also",errata_url:"Errata"};let h="<dl style='overflow:hidden' id='external-updates'>";["status","obsoletes","obsoleted_by","updates","updated_by","see_also","errata_url"].forEach(e=>{if("status"==e){a[e]=a[e].toLowerCase();var t=a[e].split(" "),o=t.length,w="",p=1;for(let e=0;e<o;e++)p<o?w=w+r(t[e])+" ":w+=r(t[e]),p++;a[e]=w}else if("obsoletes"==e||"obsoleted_by"==e||"updates"==e||"updated_by"==e){var g,m="",b=1;g=a[e].length;for(let t=0;t<g;t++)a[e][t]&&(a[e][t]=String(a[e][t]).toLowerCase(),m=b<g?m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>, ":m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>",b++);a[e]=m}else if("see_also"==e){var y,L="",C=1;y=a[e].length;for(let t=0;t<y;t++)if(a[e][t]){a[e][t]=String(a[e][t]);var _=a[e][t].slice(0,3),v=a[e][t].slice(3).replace(/^0+/,"");L=C<y?"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>, ":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>, ":"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>",C++}a[e]=L}else if("errata_url"==e){var R="";R=a[e]?R+"<a href='"+a[e]+"'>Errata exist</a> | <a href='"+d+"/"+l+"'>Datatracker</a>| <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>":"<a href='"+d+"/"+l+"'>Datatracker</a> | <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>",a[e]=R}""!=a[e]?"Errata"==u[e]?h+=`<dt>More info:</dt><dd>${a[e]}</dd>`:h+=`<dt>${u[e]}:</dt><dd>${a[e]}</dd>`:"Errata"==u[e]&&(h+=`<dt>More info:</dt><dd>${a[e]}</dd>`)}),h+="</dl>",e.innerHTML=h}catch(e){console.log(e)}else console.log("Could not locate metadata <div> element");function r(e){return e.charAt(0).toUpperCase()+e.slice(1)}}window.removeEventListener("load",addMetadata),window.addEventListener("load",addMetadata);</script>
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">DRA</td>
+<td class="right">January 2026</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Wang, et al.</td>
+<td class="center">Expires 10 July 2026</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Network Working Group</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-wang-rats-distributed-remote-attestation-02</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2026-01-06" class="published">6 January 2026</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Standards Track</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2026-07-10">10 July 2026</time></dd>
+<dt class="label-authors">Authors:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">D. Wang</div>
+<div class="org">Huawei</div>
+</div>
+<div class="author">
+      <div class="author-name">F. Liu</div>
+<div class="org">Huawei</div>
+</div>
+<div class="author">
+      <div class="author-name">Y. Jiang</div>
+<div class="org">Huawei</div>
+</div>
+<div class="author">
+      <div class="author-name">J. Zhang</div>
+<div class="org">Huawei</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Distributed Remote Attestation</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">
+        In many deployments, remote attestation is performed within separate
+        administrative and trust domains.  Each domain typically operates its
+        own management plane and a Remote Attestation Service (RAS) to obtain
+        verifier inputs (e.g., endorsement material and reference values) and
+        produce attestation results.  At scale, cross-domain scenarios face two
+        recurring challenges: (1) enabling policy-controlled transparency so
+        that verifiers or relying parties in one domain can discover and
+        retrieve selected attestation artifacts from other domains; and (2)
+        supporting many-to-many distribution and reuse of verifier inputs and
+        verifier outputs without requiring point-to-point integrations.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">
+        This document describes Distributed Remote Attestation (DRA) patterns
+        that use a shared publication channel for selected artifacts with
+        provenance and access control in mind.  A Distributed Ledger (DL) is
+        discussed as one concrete instantiation of such a publication channel,
+        including an option to host verification logic on the DL.  The
+        described patterns are intended to complement existing RATS
+        procedures and conceptual messages, and can be realized by other
+        tamper-evident publication channels with comparable properties.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-abstract-2" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 10 July 2026.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2026 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Revised BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Revised BSD License.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1" class="keepWithNext"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1" class="auto internal xref">1</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-introduction" class="internal xref">Introduction</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1" class="keepWithNext"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-2" class="auto internal xref">2</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-requirements-language" class="internal xref">Requirements Language</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3" class="auto internal xref">3</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-conventions-and-definitions" class="internal xref">Conventions and Definitions</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1" class="keepWithNext"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1" class="auto internal xref">3.1</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-abbreviations" class="internal xref">Abbreviations</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
+                <p id="section-toc.1-1.3.2.2.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.2" class="auto internal xref">3.2</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-additional-definitions" class="internal xref">Additional Definitions</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4" class="auto internal xref">4</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dra-patterns" class="internal xref">DRA Patterns</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1" class="auto internal xref">4.1</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dl-publication-with-off-cha" class="internal xref">DL publication with off-chain attestation and verification</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.2" class="auto internal xref">4.2</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dl-publication-with-optiona" class="internal xref">DL publication with optional on-chain verification</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5" class="auto internal xref">5</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-discussion" class="internal xref">Discussion</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5.1" class="auto internal xref">5.1</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-freshness-and-reuse" class="internal xref">Freshness and Reuse</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
+                <p id="section-toc.1-1.5.2.2.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5.2" class="auto internal xref">5.2</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-access-control-and-provenan" class="internal xref">Access Control and Provenance</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-6" class="auto internal xref">6</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-7" class="auto internal xref">7</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-security-considerations" class="internal xref">Security Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-8" class="auto internal xref">8</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1">
+                <p id="section-toc.1-1.8.2.1.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-8.1" class="auto internal xref">8.1</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-normative-reference" class="internal xref">Normative Reference</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.2">
+                <p id="section-toc.1-1.8.2.2.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-8.2" class="auto internal xref">8.2</a>.&nbsp;&nbsp;<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#appendix-A" class="auto internal xref"></a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-acknowledgments" class="internal xref">Acknowledgments</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#appendix-B" class="auto internal xref"></a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="intro">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1" class="section-number selfRef">1. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1">
+        Remote attestation is increasingly deployed in federated and
+        multi-operator environments where devices, services, and management
+        systems span multiple administrative and trust domains.  In practice,
+        each trust domain often operates its own Remote Attestation Service
+        (RAS) integrated into that domain's management plane, and exposes
+        attestation capabilities and artifacts according to local policies.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">
+        Cross-domain deployments expose a gap that is not primarily about the
+        attestation evidence format or the appraisal function itself, but about
+        <em>how attestation artifacts are discovered, distributed, and reused</em>
+        across domains at scale.  Two pain points are repeatedly observed:<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1-3.1">
+          <p id="section-1-3.1.1">
+          <em>Cross-domain attestation transparency:</em> A verifier or relying
+          party in domain-A may need to obtain endorsement material, reference
+          values, or attestation results that originate in domain-B.  Direct
+          point-to-point integration between operational sites does not scale,
+          and is often infeasible due to operational domains and policy
+          constraints.  Deployments therefore need a policy-consensus controlled channel
+          to publish and retrieve selected artifacts with clear provenance.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-3.2">
+          <p id="section-1-3.2.1">
+          <em>Many-to-many distribution and reuse of security artifacts:</em>
+          Verifiers appraising heterogeneous attesters need to obtain endorser
+          public keys, endorsements, and reference values from multiple
+          providers.  Conversely, providers need to distribute artifacts to
+          multiple verifiers across domains.  Similar many-to-many scaling
+          issues apply when attestation results are shared for reuse by other
+          verifiers or relying parties.  Without a shared publication channel,
+          each integration becomes a bespoke, brittle dependency.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1-3.2.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="section-1-4">
+        This document proposes a set of DRA patterns that make selected
+        attestation artifacts more reusable across multiple verifiers and
+        domains by introducing a shared publication channel.  The publication
+        channel is used to distribute:
+        (a) verifier inputs such as endorser public keys, endorsements, and
+        reference values; and (b) verifier outputs such as
+        attestation results (or pointers/digests).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1-4" class="pilcrow">¶</a></p>
+<p id="section-1-5">
+        A Distributed Ledger (DL) is discussed as one concrete instantiation
+        of the publication channel.  DLs provide tamper-evidence and
+        append-only provenance, and can be deployed in permissioned settings
+        with authenticated writes and controlled reads.  Where appropriate, a
+        DL can additionally host verification logic (e.g., smart contracts) to
+        record appraisal outcomes in a shared, auditable manner.  The patterns
+        in this document are not limited to DLs and can also be realized using
+        other tamper-evident publication channels with comparable integrity and
+        availability properties.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1-5" class="pilcrow">¶</a></p>
+<p id="section-1-6">
+        The rest of this document is organized as follows: <a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#terms" class="auto internal xref">Section 3</a>
+        defines terminology and abbreviations; <a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#patterns" class="auto internal xref">Section 4</a>
+        specifies two DRA patterns (off-chain attestation/verification with
+        on-channel publication, and an option for on-channel verification); and
+        <a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#considerations" class="auto internal xref">Section 5</a> discusses freshness, access control,
+        governance, and privacy considerations.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-1-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="req-lang">
+<section id="section-2">
+      <h2 id="name-requirements-language">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-2" class="section-number selfRef">2. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-requirements-language" class="section-name selfRef">Requirements Language</a>
+      </h2>
+<p id="section-2-1">
+        The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+        "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+        "OPTIONAL" in this document are to be interpreted as described in 
+        <span>[<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#RFC2119" class="cite xref">RFC2119</a>]</span> .<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="terms">
+<section id="section-3">
+      <h2 id="name-conventions-and-definitions">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3" class="section-number selfRef">3. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-conventions-and-definitions" class="section-name selfRef">Conventions and Definitions</a>
+      </h2>
+<p id="section-3-1">
+        This document uses roles and concepts defined by the RATS Architecture
+        <span>[<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#RFC9334" class="cite xref">RFC9334</a>]</span> (e.g., Attester, Verifier, Endorser, Reference
+        Value Provider, and Relying Party).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3-1" class="pilcrow">¶</a></p>
+<div id="abbrev">
+<section id="section-3.1">
+        <h3 id="name-abbreviations">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1" class="section-number selfRef">3.1. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-abbreviations" class="section-name selfRef">Abbreviations</a>
+        </h3>
+<span class="break"></span><dl class="dlParallel" id="section-3.1-1">
+          <dt id="section-3.1-1.1">DL:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.1-1.2">Distributed Ledger.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1-1.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.1-1.3">DRA:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.1-1.4">Distributed Remote Attestation (the patterns described in this document).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1-1.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.1-1.5">RAS:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.1-1.6">
+            Remote Attestation Service (deployment-specific service performing verifier functions
+            or mediating access to verifier inputs/outputs).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1-1.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.1-1.7">RV:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.1-1.8">Reference Value (as in <span>[<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#RFC9334" class="cite xref">RFC9334</a>]</span>).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1-1.8" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.1-1.9">AE:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.1-1.10">Attestation Evidence (as in <span>[<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#RFC9334" class="cite xref">RFC9334</a>]</span>).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1-1.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.1-1.11">AR:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.1-1.12">Attestation Result (as in <span>[<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#RFC9334" class="cite xref">RFC9334</a>]</span>).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.1-1.12" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="defs">
+<section id="section-3.2">
+        <h3 id="name-additional-definitions">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.2" class="section-number selfRef">3.2. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-additional-definitions" class="section-name selfRef">Additional Definitions</a>
+        </h3>
+<span class="break"></span><dl class="dlParallel" id="section-3.2-1">
+          <dt id="section-3.2-1.1">Artifact Publisher:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-1.2">
+            An entity that publishes selected attestation artifacts to the publication channel,
+            such as an Endorser publishing endorsement material, a Reference Value Provider publishing RVs,
+            or a Verifier publishing ARs (or pointers/digests).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.2-1.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-1.3">Artifact Consumer:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-1.4">
+            An entity that retrieves artifacts from the publication channel, such as a Verifier retrieving RVs/endorsements,
+            or a Relying Party retrieving ARs for decision-making.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.2-1.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-3.2-1.5">Publication Channel:</dt>
+          <dd style="margin-left: 1.5em" id="section-3.2-1.6">
+            A shared channel used to publish and retrieve selected attestation artifacts with provenance.
+            A DL is one concrete instantiation; other tamper-evident channels may also be used.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-3.2-1.6" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="patterns">
+<section id="section-4">
+      <h2 id="name-dra-patterns">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4" class="section-number selfRef">4. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dra-patterns" class="section-name selfRef">DRA Patterns</a>
+      </h2>
+<p id="section-4-1">
+        This section describes two common patterns for using a DL-backed RAS as
+        a publication channel for attestation artifacts.  Both patterns assume
+        that RVs and Endorser material (e.g., public keys and endorsement
+        metadata) can be published to, and retrieved from, the DL under
+        suitable access control policies.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4-1" class="pilcrow">¶</a></p>
+<div id="pattern-offchain">
+<section id="section-4.1">
+        <h3 id="name-dl-publication-with-off-cha">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1" class="section-number selfRef">4.1. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dl-publication-with-off-cha" class="section-name selfRef">DL publication with off-chain attestation and verification</a>
+        </h3>
+<span id="name-dl-publication-with-off-chai"></span><div id="fig-offchain">
+<figure id="figure-1">
+          <div class="alignLeft art-text artwork" id="section-4.1-1.1">
+<pre>+-------------------+                       +-------------------+
+|     Reference     |                       |      Endorsers    |
+|   value providers |                       |                   |
++-------------------+                       +-------------------+
+         |                                           |
+         |                                           |
+         | (0) RV                                    | (0)PK
+         |                                           |
++--------v-------------------------------------------v-----------+
+|                                                                |
+|        Distributed Ledger(Remote attestation service,RAS)      |
+|                                                                |
++-----------------------------------^----------------------------+
+                                |   |                     |
+                      (3)RV,PK  |   | (5)AR               |(6)AR
+                                |   |                     |
+                                |   |                     |
++----------------+           +--v-------------+   +-------v---+
+|  Attester      |           |  Verifier      |   | Relying   |
+| (1) freshness  |----------&gt;| (4) AR         |   |  party    |
+|      proof     |  (2) AE   |     generation |   |           |
++----------------+           +----------------+   +-----------+
+
+Figure 1 on-chain-based publication and off-chain-based attestation/verification</pre>
+</div>
+<figcaption><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#figure-1" class="selfRef">Figure 1</a>:
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dl-publication-with-off-chai" class="selfRef">DL publication with off-chain attestation and verification</a>
+          </figcaption></figure>
+</div>
+<p id="section-4.1-2">
+          As shown in Figure 1, attestation evidence exchange and appraisal follow
+          existing RATS flows, while the DL is used to publish and retrieve
+          verifier inputs and verifier outputs:<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-2" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-4.1-3">
+          <dt id="section-4.1-3.1">0)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.2">
+            <em>Registration/publication of inputs:</em> Reference Value Providers publish RVs
+        to the DL/RAS. Endorsers publish endorsement-related artifacts (e.g., endorser public keys (PK) and/or
+        endorsements) to the DL/RAS. Access control and provenance mechanisms (e.g., permissioning, signatures)
+        are deployment-specific.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-3.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.1-3.3">1)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.4">
+            <em>Freshness proof preparation:</em> A freshness challenge/context may be issued by the Verifier, RP, or another
+        authorized requester acting under policy (e.g., a domain management function). The challenge can take
+        different forms depending on deployment (e.g., a nonce, an epoch identifier, a timestamp requirement,
+        or a context string bound to an intended appraisal). The Attester uses the received challenge/context
+        to construct a <em>freshness proof</em> that will be included in AE (see step (2)).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-3.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.1-3.5">2)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.6">
+            <em>Evidence (off-chain):</em> The Attester generates AE, incorporating the freshness
+        proof required by the Verifier, and sends AE to the Verifier over an authenticated and integrity-protected
+        channel.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-3.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.1-3.7">3)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.8">
+            <em>Retrieval of appraisal inputs:</em> The Verifier retrieves RVs and Endorser artifacts (e.g., PK) from the
+        DL/RAS (or from caches populated from it), and uses them as appraisal inputs.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-3.8" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.1-3.9">4)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.10">
+            <em>Result generation and publication:</em> The Verifier appraises AE using the retrieved RV/PK,
+        and generates AR.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-3.10" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.1-3.11">5)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.12">
+            <em>Publication of results:</em> The Verifier publishes AR (or a pointer/digest to AR) to the DL/RAS for
+        cross-domain discovery and potential reuse, subject to policy, privacy, and confidentiality constraints.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-3.12" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.1-3.13">6)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.1-3.14">
+            <em>Reuse:</em> RP retrieves AR from the DL/RAS and decides whether to reuse
+        it based on provenance, freshness/validity window, and local policy.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.1-3.14" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="pattern-onchain">
+<section id="section-4.2">
+        <h3 id="name-dl-publication-with-optiona">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.2" class="section-number selfRef">4.2. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dl-publication-with-optiona" class="section-name selfRef">DL publication with optional on-chain verification</a>
+        </h3>
+<span id="name-dl-publication-with-optional"></span><div id="fig-onchain">
+<figure id="figure-2">
+          <div class="alignLeft art-text artwork" id="section-4.2-1.1">
+<pre>+-------------------+                       +-------------------+
+|     Reference     |                       |      Endorsers    |
+|   value providers |                       |                   |
++-------------------+                       +-------------------+
+         |                                           |
+         |  (0) RV                                   | (0) PK(/endorsement)
+         |                                           |
++--------v-------------------------------------------v-----------+
+|                                                                |
+|     +----------------+            +----------------+           |
+|     |  Registration  |            |  Verification  |           |
+|     |     smart      |            |     smart      |           |
+|     |   contract     |            |   contract     |           |
+|     +----------------+            +----------------+           |
+|                                                                |
+|    Distributed Ledger (Remote attestation service, RAS)        |
+|                                                                |
++-------------^--------------------------------------------------+
+      (2) AE  |                               | (3) AR
+              |                               |
+          +---v----------+               +----v--------------+
+          |   Attester   |               | Verifier/Relying  |
+          |   (1) PC     |               |      party        |
+          +--------------+               +-------------------+
+
+Figure 2 on-chain-based publication/attestation/verification</pre>
+</div>
+<figcaption><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#figure-2" class="selfRef">Figure 2</a>:
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-dl-publication-with-optional" class="selfRef">DL publication with optional on-chain verification</a>
+          </figcaption></figure>
+</div>
+<p id="section-4.2-2">
+          As shown in Figure 2, it can be beneficial to verify and/or record
+          appraisal outcomes in a shared, tamper-evident way.  In this pattern,
+          the DL is used for publication as in the previous pattern, and 
+          hosts verification logic (e.g., smart contracts) or
+          record verifiers' appraisal outcomes.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.2-2" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-4.2-3">
+          <dt id="section-4.2-3.1">0)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.2-3.2">
+            <em>Registration/publication of inputs:</em> RVs and Endorser artifacts (e.g., PK/endorsements) are published
+        to the DL/RAS. The <em>Registration smart contract</em> supports publication authorization,
+        schema/version checks, and governance rules.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.2-3.2" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.2-3.3">1)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.2-3.4">
+            <em>Evidence publication:</em> The Attester generates AE and submits it to the DL/RAS via the
+        Registration smart contract. AE could include a freshness proof suitable for publication and reuse
+        (e.g., timestamp or epoch ID). The Attester may also obtain/derive a public challenge (PC) value
+        to support freshness/unpredictability of the subsequent evidence. A common realization is to use a
+        DL-derived value such as a recent block hash (or other consensus-derived header material). The block-generation
+        process (consensus, timestamps, and transaction sets) makes future block hashes hard to predict in advance,
+        and the one-way property of hash functions prevents an attacker from predefining a desired hash by
+        reverse-engineering corresponding block contents. Such selected PC is incorporated into AE in step (2).<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.2-3.4" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.2-3.5">2)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.2-3.6">
+            <em>Verification and result recording (on-chain):</em> The <em>Verification smart contract</em> (or other
+        on-chain verification logic) verifies AE using RVs and Endorser artifacts available from the DL/RAS, and
+        checks freshness according to configured policy (e.g., acceptable time window / epoch constraints). The
+        appraisal outcome is recorded as AR (or an appraisal log entry) on-chain. Triggering may be initiated by a
+        Verifier, a Relying Party, or automatically upon AE submission, subject to policy.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.2-3.6" class="pilcrow">¶</a>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-4.2-3.7">3)</dt>
+          <dd style="margin-left: 1.5em" id="section-4.2-3.8">
+            <em>Result retrieval:</em> The Verifier/RP queries the DL/RAS and obtains AR for decision-making
+        and/or reuse.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-4.2-3.8" class="pilcrow">¶</a>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="considerations">
+<section id="section-5">
+      <h2 id="name-discussion">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5" class="section-number selfRef">5. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-discussion" class="section-name selfRef">Discussion</a>
+      </h2>
+<div id="freshness">
+<section id="section-5.1">
+        <h3 id="name-freshness-and-reuse">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5.1" class="section-number selfRef">5.1. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-freshness-and-reuse" class="section-name selfRef">Freshness and Reuse</a>
+        </h3>
+<p id="section-5.1-1">For the DRA service, the blocks of the DL need to be generated at appropriate time intervals, such as 
+        every few seconds. The consensus rules trigger the new block generation process periodically through preset 
+        time parameters. Even if there is no transaction data within a specific period, nodes will still generate 
+        an empty block containing basic information like the hash of the previous block and timestamps according 
+        to established algorithms. This approach aims to maintain the continuity of the DL chain structure and 
+        the orderliness of timestamps, thereby ensuring the freshness and validity of PC.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.1-2">
+          Artifact Consumers evaluates whether retrieved artifacts are fresh enough for their own threat model
+          and acceptable staleness window.  When ARs are published for reuse, it is recommended that ARs include
+          time-of-appraisal and a validity interval, so that downstream consumers can make an informed decision.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="access">
+<section id="section-5.2">
+        <h3 id="name-access-control-and-provenan">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5.2" class="section-number selfRef">5.2. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-access-control-and-provenan" class="section-name selfRef">Access Control and Provenance</a>
+        </h3>
+<p id="section-5.2-1">
+          The publication channel enforces authorization for publication.  Consumers validates provenance and
+          integrity (e.g., signatures, trust anchors) for retrieved RVs, endorsement material, and ARs.
+          Deployments further defines governance for artifact update/rollback and caching policies.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-5.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="iana">
+<section id="section-6">
+      <h2 id="name-iana-considerations">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-6" class="section-number selfRef">6. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-6-1">This document has no IANA considerations.<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-6-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="security">
+<section id="section-7">
+      <h2 id="name-security-considerations">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-7" class="section-number selfRef">7. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<p id="section-7-1">TODO<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-7-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<section id="section-8">
+      <h2 id="name-references">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-8" class="section-number selfRef">8. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-references" class="section-name selfRef">References</a>
+      </h2>
+<section id="section-8.1">
+        <h3 id="name-normative-reference">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-8.1" class="section-number selfRef">8.1. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-normative-reference" class="section-name selfRef">Normative Reference</a>
+        </h3>
+<dl class="references">
+<dt id="RFC2119">[RFC2119]</dt>
+      <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+<section id="section-8.2">
+        <h3 id="name-informative-references">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#section-8.2" class="section-number selfRef">8.2. </a><a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC9334">[RFC9334]</dt>
+      <dd>
+<span class="refAuthor">Thaler, D.</span>, <span class="refAuthor">Richardson, M.</span>, <span class="refAuthor">Smith, M.</span>, and <span class="refAuthor">W. Pan</span>, <span class="refTitle">"Remote ATtestation procedureS (RATS) Architecture"</span>, <time datetime="2023-01" class="refDate">January 2023</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/rfc9334/">https://datatracker.ietf.org/doc/rfc9334/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</section>
+<div id="acknowledgments">
+<section id="appendix-A">
+      <h2 id="name-acknowledgments">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-acknowledgments" class="section-name selfRef">Acknowledgments</a>
+      </h2>
+<p id="appendix-A-1">TODO<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#appendix-A-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-B">
+      <h2 id="name-authors-addresses">
+<a href="https://www.ietf.org/archive/id/draft-wang-rats-distributed-remote-attestation-02.html#name-authors-addresses" class="section-name selfRef">Authors' Addresses</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Donghui Wang</span></div>
+<div dir="auto" class="left"><span class="org">Huawei</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:wangdonghui124@huawei.com" class="email">wangdonghui124@huawei.com</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Faye Liu</span></div>
+<div dir="auto" class="left"><span class="org">Huawei</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:liufei19@huawei.com" class="email">liufei19@huawei.com</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Yuning Jiang</span></div>
+<div dir="auto" class="left"><span class="org">Huawei</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:jiangyuning2@h-partners.com" class="email">jiangyuning2@h-partners.com</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Jun Zhang</span></div>
+<div dir="auto" class="left"><span class="org">Huawei</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:junzhang1@huawei.com" class="email">junzhang1@huawei.com</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+
+
+</body></html>
